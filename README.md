@@ -122,4 +122,4 @@ Alert System: Automated SMS alerts using Twilio when a fire is detected.
 The software is designed to be scalable and can be enhanced with additional features in the future. Future improvements will focus on optimizing performance, adding advanced analytics, and expanding the system’s capabilities for better fire detection and user experience.
 
 Contact
-For any questions, feedback, or suggestions, feel free to contact me via: GitHub: https://github.com/DONCHAN70047
+For any questions, feedback, or suggestions, feel free to contact me via: GitHub: https://github.com/RIDDHI-ADAK
