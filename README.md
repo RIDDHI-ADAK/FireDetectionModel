@@ -3,7 +3,7 @@ Fire detection model project
 
 
 
-FireDetection App
+# FireDetection App
 Welcome to the FireDetection app! This application leverages Streamlit to provide real-time fire detection capabilities using machine learning and computer vision. The goal is to help prevent fire hazards and assist in timely emergency responses.
 
 📋 Features
@@ -26,7 +26,7 @@ Error Handling
 
 Future Enhancements
 
-Contact
+# Contact
 
 Introduction
 The Fire Detection Project is designed to detect fires in real-time using a combination of hardware and machine learning. It uses a camera for image-based fire detection, smoke and temperature sensors for environmental monitoring, and an Arduino board to interface with the sensors. The system sends alerts via SMS when a fire is detected.
