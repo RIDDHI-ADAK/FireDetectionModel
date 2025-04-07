@@ -15,6 +15,117 @@ import serial.tools.list_ports
 import gdown
 import requests
 import os
+import sqlite3
+import pandas as pd
+import joblib
+
+
+############################################################## Make a model data #######################  Temp dalete ############################
+def create_table99(db_name, table_name):
+    """
+    Creates a table in the specified SQLite database if it doesn't exist.
+
+    Args:
+        db_name (str): Name of the SQLite database file.
+        table_name (str): Name of the table to be created.
+    """
+    try:
+        # Connect to the SQLite database
+        connection = sqlite3.connect(db_name)
+        cursor = connection.cursor()
+
+        # Create the table
+        cursor.execute(f"""
+        CREATE TABLE IF NOT EXISTS {table_name} (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            column1 REAL,
+            column2 REAL,
+            column3 REAL,
+            status INTEGER
+        )
+        """)
+        connection.commit()
+        print(f"Table '{table_name}' created successfully!")
+
+    except Exception as e:
+        print(f"An error occurred while creating the table: {e}")
+
+    finally:
+        # Close the database connection
+        connection.close()
+
+
+def insert_values(db_name, table_name, values):
+    """
+    Inserts a row of values into the specified SQLite table.
+
+    Args:
+        db_name (str): Name of the SQLite database file.
+        table_name (str): Name of the table in the database.
+        values (tuple): A tuple containing the values to insert.
+    """
+    try:
+        # Connect to the SQLite database
+        connection = sqlite3.connect(db_name)
+        cursor = connection.cursor()
+
+        # Dynamically create the INSERT query
+        placeholders = ", ".join("?" for _ in values)
+        query = f"INSERT INTO {table_name} (column1, column2, column3, status) VALUES ({placeholders})"
+
+        # Execute the query with provided values
+        cursor.execute(query, values)
+
+        # Commit the transaction
+        connection.commit()
+        print("Values inserted successfully!")
+
+    except Exception as e:
+        print(f"An error occurred while inserting values: {e}")
+
+    finally:
+        # Close the database connection
+        connection.close()
+
+
+def InsertDataForTrain(a, b, c, status):
+    """
+    Inserts given values into the table and exports the table data to a CSV file.
+
+    Args:
+        a, b, c: Values to be inserted into the table.
+        status: Value indicating fire (1) or not fire (0).
+    """
+    db_name = "converted_database.sqlite"
+    table_name = "fire_model_train"
+    csv_file = "exported_data.csv"
+
+    # Create the table if not exists
+    create_table99(db_name, table_name)
+
+    # Insert values into the table
+    values = (a, b, c, status)
+    insert_values(db_name, table_name, values)
+
+    # Export the table data to a CSV file
+    try:
+        connection = sqlite3.connect(db_name)
+        query = f"SELECT * FROM {table_name}"
+        data = pd.read_sql_query(query, connection)
+        data.to_csv(csv_file, index=False)
+        print(f"Data from table '{table_name}' has been exported to '{csv_file}'.")
+    except Exception as e:
+        print(f"An error occurred while exporting to CSV: {e}")
+    finally:
+        connection.close()
+
+############################################################## Make a model data #######################  Temp dalete ############################
+
+
+
+
+
+
 
 
 ############################################################# Background colour ########################################################
@@ -325,14 +436,17 @@ def load_model():
             st.warning(f"⚠️ File '{model_path}' not found. Downloading from Drive...")
             drive_url = "https://drive.google.com/file/d/117DDsMO0mle9IAFz-FO45PdTiXotNR5X/view?usp=drive_link"  # Your Drive link
             download_model_from_drive(drive_url, model_path)
-
         # Load the model
-        model = tf.keras.models.load_model(model_path)
+        model = tf.keras.models.load_model('model.h5')
         st.success("✅ Model loaded successfully!")
         return model
     except Exception as e:
         st.error(f"❌ Error loading model: {e}")
         return None
+    
+def load_model2() :
+    model = joblib.load("IFELSEModelPartNew.pkl")     ##modelOfIfElsePart
+    return model
 
 
 
@@ -355,6 +469,14 @@ def predict_image(img_path):
         st.error(f"⚠️ Prediction error: {e}")
         return None
 ################################################################# Fire Prediction using camera ######################################################
+
+################################################################## Predict if-else part ###########################################################
+def predict2(cameraValue, smokeValue, tempValue) :
+    model = load_model2()
+    modelOfIfElsePart = pd.DataFrame([[cameraValue, smokeValue, tempValue]], columns=["CameraValue", "SmokeValue", "TempValue"])
+    prediction = model.predict_proba(modelOfIfElsePart)[0][1]
+    return prediction
+################################################################## Predict if-else part ###########################################################
 
 ############################ Get sensor data #################################### 
 def get_sensor_data1():
@@ -477,13 +599,16 @@ def start_camera():
         CameraValue = predict_image(img_path)
         
         #CameraValue = 0.4
-        #analogTemp = 100
-        #temperatureC = 1
+        #analogTemp = 240
+        #temperatureC = 31.9
         if CameraValue is not None:
-            if CameraValue > 0.3 and analogTemp >= 250 and temperatureC >= 13:  
+            result = predict2(CameraValue, analogTemp, temperatureC)
+            if result > 0.5:
+                print("🔥 Fire Detected! On 2")
                 count += 1
                 print(f'Fire detected   Count: {count} under the 3 count')
                 prediction_placeholder.subheader(f"🔥 Fire Detected! ")   #{str(CameraValue)} 
+                InsertDataForTrain(CameraValue, analogTemp, temperatureC, 1) 
                 if count >= 3:
                     insert_sensor_data2(analogTemp, temperatureC , 1.0)
                     for i in range(6) :
@@ -492,19 +617,17 @@ def start_camera():
                         if(i == 6) :
                             message = '🔥 Fire detected on the 1st floor! Please evacuate immediately using the nearest exit. 🚪⚠️'
                             SMSAlet(message, SMSSource(), recipient_number1, recipient_number2,  recipient_number3, recipient_number4) 
+                            return
                         else :
                             print(i) 
-                            
-                    return  
             else:
+                print("✅ No Fire. On 2")
                 prediction_placeholder.subheader(f"✅ No Fire Detected ")   #{str(CameraValue)}
                 count = 0
                 insert_sensor_dataTemp(analogTemp, temperatureC)
+                InsertDataForTrain(CameraValue, analogTemp, temperatureC, 0) 
                 delete_oldest_record()
-                
-                
-
-        #tt.sleep(0.5)  
+ 
 
     cap.release()
     cv2.destroyAllWindows()
